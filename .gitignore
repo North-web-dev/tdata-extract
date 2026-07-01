@@ -1,0 +1,6 @@
+tdata/
+*.session
+*.json.out
+__pycache__/
+*.pyc
+.venv/
