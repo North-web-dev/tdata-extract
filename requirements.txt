@@ -1,1 +1,1 @@
-opentele>=1.15.0
+cryptography>=41.0
