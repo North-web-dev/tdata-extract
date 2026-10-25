@@ -101,11 +101,20 @@ def _scan_mtp(plain: bytes):
     return None
 
 
+class PasscodeError(Exception):
+    """key_data decrypt failed — usually a missing or wrong --passcode."""
+
+
 def extract(base: str, passcode: bytes = b"") -> list:
     body = read_tdf(os.path.join(base, "key_data"))
     ks = _BE(body)
     salt, key_enc = ks.qba(), ks.qba()
-    local_key = decrypt_local(key_enc, create_local_key(salt, passcode))[:256]
+    try:
+        local_key = decrypt_local(key_enc, create_local_key(salt, passcode))[:256]
+    except ValueError:
+        raise PasscodeError(
+            "could not unlock key_data — "
+            + ("wrong --passcode" if passcode else "this tdata is passcode-protected; pass --passcode"))
 
     out, seen = [], set()
     for root, _, files in os.walk(base):
@@ -141,7 +150,10 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if not os.path.isdir(a.tdata):
         raise SystemExit(f"not a directory: {a.tdata}")
-    rows = extract(a.tdata, a.passcode.encode())
+    try:
+        rows = extract(a.tdata, a.passcode.encode())
+    except PasscodeError as e:
+        raise SystemExit(str(e))
     if not rows:
         raise SystemExit("no auth keys found (wrong path/passcode, or empty tdata)")
     text = format_output(rows, a.json)
